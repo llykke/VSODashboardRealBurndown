@@ -1,0 +1,67 @@
+{
+	"manifestVersion": 1,
+	"id": "vsts-extensions-myExtensions",
+	"version": "1.1.3",
+	"name": "Real Sprint burndown",
+	"description": "Creates a sprint burndown chart based on your sprint and supported states in workflow",
+	"publisher": "tomkamphuis",
+	"targets": [
+		{
+			"id": "Microsoft.VisualStudio.Services"
+		}
+	],
+	"icons": {
+		"default": "img/logo.png"
+	},
+	"contributions": [
+		{
+			"id": "RealSprintBurndown",
+			"type": "ms.vss-dashboards-web.widget",
+			"targets": [
+				"ms.vss-dashboards-web.widget-catalog",
+                 "tomkamphuis.vsts-extensions-myExtensions.RealSprintBurndown.Configuration"
+			],
+			"properties": {
+				"name": "Real Sprint burndown",
+				"description": "Creates a sprint burndown chart based on your sprint and supported states in workflow",
+				"catalogIconUrl:": "img/logo.png",
+				"previewImageUrl": "img/preview.png",                            
+				"uri": "burndown.html",
+				"supportedSizes": [
+					 {
+						"rowSpan": 2,
+						"columnSpan": 3
+					}
+				],
+				"supportedScopes": ["project_team"]
+			}
+		},
+		{
+			"id": "RealSprintBurndown.Configuration",
+			"type": "ms.vss-dashboards-web.widget-configuration",
+			"targets": [ "ms.vss-dashboards-web.widget-configuration" ],
+			"properties": {
+				"name": "RealSprintBurndown Configuration",
+				"description": "Configures RealSprintBurndown",
+				"uri": "configuration.html"
+			}
+		}
+	],
+	"files": [
+		{
+			"path": "burndown.html", "addressable": true
+		},
+		{
+			"path": "configuration.html", "addressable": true
+		},
+		{
+			"path": "sdk/scripts", "addressable": true
+		},
+		{
+			"path": "img", "addressable": true
+		}
+	],
+	"scopes":[
+        "vso.work"
+    ]
+}

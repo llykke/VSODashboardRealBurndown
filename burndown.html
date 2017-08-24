@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+		.chart div {
+			font: 10px sans-serif;
+			background-color: steelblue;
+			text-align: right;
+			padding: 3px;
+			margin: 1px;
+			color: white;
+		}
+		.chart rect {
+			stroke: white;
+			fill: steelblue;
+		}
+		.axis path,
+		.axis line {
+			fill: none;
+			stroke: #000;
+			shape-rendering: crispEdges;
+		}
+		.line {
+			fill: none;
+			stroke-width: 1.5px;
+		}
+		.line.ideal {
+			stroke: steelblue;
+		}
+		.line.actual {
+			stroke: orange;
+		}
+		</style>
+		<script src="sdk/scripts/VSS.SDK.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<script type="text/javascript">
+			VSS.init({                        
+				explicitNotifyLoaded: true,
+				usePlatformStyles: true
+			});
+			
+			var margin = {top: 10, right: 10, bottom: 15, left: 25},
+				width = 450 - margin.left - margin.right,
+				height = 250 - margin.top - margin.bottom;
+			var x = d3.scaleLinear().range([0, width]);
+			var y = d3.scaleLinear().range([height, 0]);
+
+			VSS.require(["TFS/Dashboards/WidgetHelpers", "VSS/Service", "TFS/Work/RestClient", "TFS/WorkItemTracking/RestClient"], function (WidgetHelpers, VSS_Service, TFS_Work_WebApi, TFS_Wit_WebApi) {
+				WidgetHelpers.IncludeWidgetStyles();
+				VSS.register("RealSprintBurndown", function () { 
+				
+					var webContext = VSS.getWebContext();
+					var teamContext = { projectId: webContext.project.id, teamId: webContext.team.id, project: "", team: "" };
+					
+					var getIterationInfo = function (widgetSettings) {
+						var excludedFields = "'New','Approved','Ready for Release','Closed','Completed','Resolved','Removed','Done'";
+						var settings = JSON.parse(widgetSettings.customSettings.data);
+						if (settings && settings.excludedFields) {
+							excludedFields = settings.excludedFields;
+						}
+						return TFS_Work_WebApi.getClient().getTeamIterations(teamContext, "current")
+							.then(function (iterations) {
+								
+								var oneDay = 86400000;// Miliseconds per day
+								var todayInfo = Date.now() + oneDay;
+								var milisecondsStart = Date.parse(iterations[0].attributes.startDate);
+								var milisecondsEnd = Date.parse(iterations[0].attributes.finishDate);
+								var dayOfSprint = 0;
+								var sprintDayCollection = [];
+								var graphData = [];
+								
+								var witClient = VSS_Service.getCollectionClient(TFS_Wit_WebApi.WorkItemTrackingHttpClient);
+								
+								while(milisecondsStart <= milisecondsEnd)
+								{
+									var currentDate = new Date(milisecondsStart + 86399940); // + to end of day
+									
+									if(currentDate.toString().indexOf('Sat') === -1 && currentDate.toString().indexOf('Sun') === -1)
+									{
+										sprintDayCollection.push({Day: dayOfSprint, Date: currentDate});
+										dayOfSprint++; 
+									}
+								
+									milisecondsStart += oneDay;
+								}
+								
+								for(var i = 0; i < sprintDayCollection.length; i++) {
+								
+									console.log(Date.parse(sprintDayCollection[i].Date) < todayInfo);
+								
+									if(Date.parse(sprintDayCollection[i].Date) < todayInfo) {
+								
+										var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='Snappet\\" + webContext.team.name + "' AND [System.IterationPath]='" + iterations[0].path + "' AND [System.State] NOT IN (" + excludedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+										witClient.queryByWiql(query, webContext.project.id).then(
+										function(result) {
+											var idCollection = [];
+											for(var j = 0; j < result.workItems.length; j++) {
+												idCollection.push(result.workItems[j].id);
+											};
+											
+											if(idCollection.length) {
+												witClient.getWorkItems(idCollection, ["Microsoft.VSTS.Scheduling.Effort"], result.asOf).then(
+												function(workItems) {
+													var currentDay = 0;
+													for(var l = 0; l < sprintDayCollection.length; l++) {
+														if(result.asOf.toString() === sprintDayCollection[l].Date.toString()) {
+															currentDay = sprintDayCollection[l].Day;
+															break;
+														}
+													}
+													
+													var totalEffort = 0;
+													for(var k = 0; k < workItems.length; k++) {
+														var currentEffort = workItems[k].fields['Microsoft.VSTS.Scheduling.Effort'];
+														if(currentEffort !== undefined) {
+															totalEffort += currentEffort;
+														};
+													};
+													
+													graphData.push({Day: currentDay, Remaining: totalEffort});
+											
+													if(sprintDayCollection.length === graphData.length) {
+														GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
+													};
+												});
+											}
+										});
+									
+									} else {
+										graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
+
+										if(sprintDayCollection.length === graphData.length) {
+											GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
+										};
+									}
+								}
+								
+								return WidgetHelpers.WidgetStatusHelper.Success();
+							}, function (error) {                            
+								return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
+							});
+					}
+				
+					return {
+						load: function (widgetSettings) {
+							var $title = $('h2.title');
+							$title.text('Real Sprint Burndown');
+
+							return getIterationInfo(widgetSettings);
+						},
+						reload: function (widgetSettings) {
+							return getIterationInfo(widgetSettings);
+						}
+					}
+				});
+				VSS.notifyLoadSucceeded();
+			});
+			
+			function GenerateGraph(graphData) {
+				var ideal = [
+					{ Day: 0, Remaining: graphData[0].Remaining},
+					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
+				];
+				var actual = graphData;
+
+				var idealLine = d3.line()
+					.x(function(d) { return x(d.Day); })
+					.y(function(d) { return y(d.Remaining); });
+				var actualLine = d3.line()
+					.x(function(d) { return x(d.Day); })
+					.y(function(d) { return y(d.Remaining); });
+
+				x.domain(d3.extent(ideal, function(d){return d.Day;}));
+				y.domain(d3.extent(ideal.concat(actual), function (d) { return d.Remaining; }));
+
+				var xAxis = d3.axisBottom()
+					.scale(x);
+
+				var yAxis = d3.axisLeft()
+					.scale(y);
+
+				var chart = d3.select("#query-info-container").append("svg")
+					.attr("class", "chart")
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom + 5)
+					.append("g")
+					.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+				// Create the x-axis
+				chart.append("g")
+					.attr("class", "x axis")
+					.attr("transform", "translate(0," + height + ")")
+					.call(xAxis);
+
+				// Create the y-axis
+				chart.append("g")
+					.attr("class", "y axis")
+					.call(yAxis)
+					.append("text")
+					.attr("transform", "rotate(-90)")
+					.attr("y", 6)
+					.attr("dy", ".71em")
+					.style("text-anchor", "end")
+					.text("Points");
+
+				// Paint the ideal line
+				chart.append("path")
+					.datum(ideal)
+					.attr("class", "line ideal")
+					.attr("d", idealLine);
+
+				var validActual = [];
+				for (var i = 0; i < actual.length; i++) {
+					if (actual[i].Remaining) {
+						validActual.push(actual[i]);
+					}
+				}
+
+				// Paint the actual line
+				chart.append("path")
+					.datum(validActual)
+					.attr("class", "line actual")
+					.attr("d", actualLine);
+			}
+		</script>
+	</head>
+	<body>
+		<div class="widget">
+			<h2 class="title"></h2>
+			<div id="query-info-container"></div>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>                          
+		<script src="sdk/scripts/VSS.SDK.min.js"></script> 
+		<script type="text/javascript">
+			VSS.init({                        
+				explicitNotifyLoaded: true,
+				usePlatformStyles: true
+			});
+
+			VSS.require("TFS/Dashboards/WidgetHelpers", function (WidgetHelpers) {
+				VSS.register("RealSprintBurndown.Configuration", function () {   
+					var $excludedFieldsInput = $("#excluded-fields"); 
+
+					return {
+						load: function (widgetSettings, widgetConfigurationContext) {
+							var settings = JSON.parse(widgetSettings.customSettings.data);
+							if (settings && settings.excludedFields) {
+								 $excludedFieldsInput.val(settings.excludedFields);
+							}
+							
+							$excludedFieldsInput.on("change", function () {
+								var customSettings = {
+									data: JSON.stringify({
+										excludedFields: $excludedFieldsInput.val()
+									})
+								};
+								var eventName = WidgetHelpers.WidgetEvent.ConfigurationChange;
+								var eventArgs = WidgetHelpers.WidgetEvent.Args(customSettings);
+								widgetConfigurationContext.notify(eventName, eventArgs);
+							});
+							
+							return WidgetHelpers.WidgetStatusHelper.Success();
+						},
+						onSave: function() {
+							var customSettings = {
+								data: JSON.stringify({
+										excludedFields: $excludedFieldsInput.val()
+									})
+							};
+							return WidgetHelpers.WidgetConfigurationSave.Valid(customSettings); 
+						}
+					}
+				});
+				VSS.notifyLoadSucceeded();
+			});
+		</script>		
+	</head>
+	<body>
+		<div class="container">
+			<fieldset>
+				<label class="label">States to exclude from items to burndown: </label>
+				<input type="text" value="'New','Approved','Ready for Release','Closed','Completed','Resolved','Removed','Done'" id="excluded-fields" style="margin-top:10px" />
+			</fieldset>             
+		</div>
+	</body>
+</html>
