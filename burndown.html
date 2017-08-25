@@ -63,7 +63,8 @@
 							.then(function (iterations) {
 								
 								var oneDay = 86400000;// Miliseconds per day
-								var todayInfo = Date.now() + oneDay;
+								var toEndOfDay = 86399940;
+								var todayInfo = Date.now() + toEndOfDay;
 								var milisecondsStart = Date.parse(iterations[0].attributes.startDate);
 								var milisecondsEnd = Date.parse(iterations[0].attributes.finishDate);
 								var dayOfSprint = 0;
@@ -74,7 +75,8 @@
 								
 								while(milisecondsStart <= milisecondsEnd)
 								{
-									var currentDate = new Date(milisecondsStart + 86399940); // + to end of day
+									var currentDate = new Date(milisecondsStart);
+									currentDate.setHours(23);
 									
 									if(currentDate.toString().indexOf('Sat') === -1 && currentDate.toString().indexOf('Sun') === -1)
 									{
@@ -87,9 +89,7 @@
 								
 								for(var i = 0; i < sprintDayCollection.length; i++) {
 								
-									console.log(Date.parse(sprintDayCollection[i].Date) < todayInfo);
-								
-									if(Date.parse(sprintDayCollection[i].Date) < todayInfo) {
+									if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
 								
 										var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='Snappet\\" + webContext.team.name + "' AND [System.IterationPath]='" + iterations[0].path + "' AND [System.State] NOT IN (" + excludedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
 										witClient.queryByWiql(query, webContext.project.id).then(
