@@ -10,19 +10,19 @@
 
 			VSS.require("TFS/Dashboards/WidgetHelpers", function (WidgetHelpers) {
 				VSS.register("RealSprintBurndown.Configuration", function () {   
-					var $excludedFieldsInput = $("#excluded-fields"); 
+					var $includedFieldsInput = $("#included-fields"); 
 
 					return {
 						load: function (widgetSettings, widgetConfigurationContext) {
 							var settings = JSON.parse(widgetSettings.customSettings.data);
-							if (settings && settings.excludedFields) {
-								 $excludedFieldsInput.val(settings.excludedFields);
+							if (settings && settings.includedFields) {
+								 $includedFieldsInput.val(settings.includedFields);
 							}
 							
-							$excludedFieldsInput.on("change", function () {
+							$includedFieldsInput.on("change", function () {
 								var customSettings = {
 									data: JSON.stringify({
-										excludedFields: $excludedFieldsInput.val()
+										includedFields: $includedFieldsInput.val()
 									})
 								};
 								var eventName = WidgetHelpers.WidgetEvent.ConfigurationChange;
@@ -35,7 +35,7 @@
 						onSave: function() {
 							var customSettings = {
 								data: JSON.stringify({
-										excludedFields: $excludedFieldsInput.val()
+										includedFields: $includedFieldsInput.val()
 									})
 							};
 							return WidgetHelpers.WidgetConfigurationSave.Valid(customSettings); 
@@ -49,8 +49,8 @@
 	<body>
 		<div class="container">
 			<fieldset>
-				<label class="label">States to exclude from items to burndown: </label>
-				<input type="text" value="'New','Approved','Ready for Release','Closed','Completed','Resolved','Removed','Done'" id="excluded-fields" style="margin-top:10px" />
+				<label class="label">Item states to include in burndown: </label>
+				<input type="text" value="'Committed','In Progress','Ready for Code Review','Ready for test','PO check'" id="included-fields" style="margin-top:10px" />
 			</fieldset>             
 		</div>
 	</body>

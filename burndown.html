@@ -2,6 +2,10 @@
 <html>
 	<head>
 		<style>
+		#query-info-container {
+			clear: both;
+		}
+		
 		.chart div {
 			font: 10px sans-serif;
 			background-color: steelblue;
@@ -40,103 +44,153 @@
 				usePlatformStyles: true
 			});
 			
-			var margin = {top: 10, right: 10, bottom: 15, left: 25},
-				width = 450 - margin.left - margin.right,
-				height = 250 - margin.top - margin.bottom;
-			var x = d3.scaleLinear().range([0, width]);
-			var y = d3.scaleLinear().range([height, 0]);
-
 			VSS.require(["TFS/Dashboards/WidgetHelpers", "VSS/Service", "TFS/Work/RestClient", "TFS/WorkItemTracking/RestClient"], function (WidgetHelpers, VSS_Service, TFS_Work_WebApi, TFS_Wit_WebApi) {
 				WidgetHelpers.IncludeWidgetStyles();
 				VSS.register("RealSprintBurndown", function () { 
 				
+					var $title = $('h2.title');
+					var $previous = $('a.goToPreviousSprint');
+					var $next = $('a.goToNextSprint');
+					var $content = $('#query-info-container');
+					
+					var currentWidgetSettings;
+					var currentIteration = 0;
+					var currentIterations = [];
+					
+					$previous.click(function() {
+						if(currentIteration > 0) {
+							currentIteration = currentIteration - 1;
+							setIterationInfo();
+						}
+					});
+					
+					$next.click(function() {
+						if(currentIteration < (currentIterations.length - 1)) {
+							currentIteration = currentIteration + 1;
+							setIterationInfo();
+						}
+					});
+				
 					var webContext = VSS.getWebContext();
 					var teamContext = { projectId: webContext.project.id, teamId: webContext.team.id, project: "", team: "" };
 					
-					var getIterationInfo = function (widgetSettings) {
-						var excludedFields = "'New','Approved','Ready for Release','Closed','Completed','Resolved','Removed','Done'";
-						var settings = JSON.parse(widgetSettings.customSettings.data);
-						if (settings && settings.excludedFields) {
-							excludedFields = settings.excludedFields;
+					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData) {
+						if(sprintDayCollection.length === graphData.length) {
+							$content.empty();
+							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
 						}
-						return TFS_Work_WebApi.getClient().getTeamIterations(teamContext, "current")
-							.then(function (iterations) {
+					};
+					
+					var setIterationInfo = function() {
+						$content.empty();
+						$content.html('<img src="img/loader.gif" style="margin: 8% 27%;" />');
+					
+						$title.text(currentIterations[currentIteration].name);
 								
-								var oneDay = 86400000;// Miliseconds per day
-								var toEndOfDay = 86399940;
-								var todayInfo = Date.now() + toEndOfDay;
-								var milisecondsStart = Date.parse(iterations[0].attributes.startDate);
-								var milisecondsEnd = Date.parse(iterations[0].attributes.finishDate);
-								var dayOfSprint = 0;
-								var sprintDayCollection = [];
-								var graphData = [];
-								
-								var witClient = VSS_Service.getCollectionClient(TFS_Wit_WebApi.WorkItemTrackingHttpClient);
-								
-								while(milisecondsStart <= milisecondsEnd)
-								{
-									var currentDate = new Date(milisecondsStart);
-									currentDate.setHours(23);
-									
-									if(currentDate.toString().indexOf('Sat') === -1 && currentDate.toString().indexOf('Sun') === -1)
-									{
-										sprintDayCollection.push({Day: dayOfSprint, Date: currentDate});
-										dayOfSprint++; 
-									}
-								
-									milisecondsStart += oneDay;
-								}
-								
-								for(var i = 0; i < sprintDayCollection.length; i++) {
-								
-									if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
-								
-										var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='Snappet\\" + webContext.team.name + "' AND [System.IterationPath]='" + iterations[0].path + "' AND [System.State] NOT IN (" + excludedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
-										witClient.queryByWiql(query, webContext.project.id).then(
-										function(result) {
-											var idCollection = [];
-											for(var j = 0; j < result.workItems.length; j++) {
-												idCollection.push(result.workItems[j].id);
-											};
-											
-											if(idCollection.length) {
-												witClient.getWorkItems(idCollection, ["Microsoft.VSTS.Scheduling.Effort"], result.asOf).then(
-												function(workItems) {
-													var currentDay = 0;
-													for(var l = 0; l < sprintDayCollection.length; l++) {
-														if(result.asOf.toString() === sprintDayCollection[l].Date.toString()) {
-															currentDay = sprintDayCollection[l].Day;
-															break;
-														}
-													}
-													
-													var totalEffort = 0;
-													for(var k = 0; k < workItems.length; k++) {
-														var currentEffort = workItems[k].fields['Microsoft.VSTS.Scheduling.Effort'];
-														if(currentEffort !== undefined) {
-															totalEffort += currentEffort;
-														};
-													};
-													
-													graphData.push({Day: currentDay, Remaining: totalEffort});
-											
-													if(sprintDayCollection.length === graphData.length) {
-														GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
-													};
-												});
-											}
-										});
-									
-									} else {
-										graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
-
-										if(sprintDayCollection.length === graphData.length) {
-											GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
+						var includedFields = GetIncludedFields(currentWidgetSettings);
+						var oneDay = 86400000;// Miliseconds per day
+						var toEndOfDay = 86399940;
+						var todayInfo = Date.now() + toEndOfDay;
+						var milisecondsStart = Date.parse(currentIterations[currentIteration].attributes.startDate);
+						var milisecondsEnd = Date.parse(currentIterations[currentIteration].attributes.finishDate);
+						var dayOfSprint = 0;
+						var sprintDayCollection = [];
+						var graphData = [];
+						
+						var witClient = VSS_Service.getCollectionClient(TFS_Wit_WebApi.WorkItemTrackingHttpClient);
+						
+						while(milisecondsStart <= milisecondsEnd)
+						{
+							var currentDate = new Date(milisecondsStart);
+							currentDate.setHours(23);
+							
+							if(currentDate.toString().indexOf('Sat') === -1 && currentDate.toString().indexOf('Sun') === -1)
+							{
+								sprintDayCollection.push({Day: dayOfSprint, Date: currentDate});
+								dayOfSprint++; 
+							}
+						
+							milisecondsStart += oneDay;
+						}
+						
+						for(var i = 0; i < sprintDayCollection.length; i++) {
+						
+							if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
+						
+								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='Snappet\\" + webContext.team.name + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								witClient.queryByWiql(query, webContext.project.id).then(
+									function(result) {
+										var idCollection = [];
+										for(var j = 0; j < result.workItems.length; j++) {
+											idCollection.push(result.workItems[j].id);
 										};
+										
+										var currentDay = GetCurrentDay(result.asOf, sprintDayCollection);
+																						
+										if(idCollection.length) {
+											witClient.getWorkItems(idCollection, ["Microsoft.VSTS.Scheduling.Effort"], result.asOf).then(
+											function(workItems) {									
+												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
+												decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+											}, function (error) {                            
+												return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
+											});
+										} else {
+											graphData.push({Day: currentDay, Remaining: 0});
+											decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+										}
+									}, function (error) {                            
+										return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
+									});
+									
+							} else {
+								graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
+								decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+							}
+						}
+						
+						return WidgetHelpers.WidgetStatusHelper.Success();
+					};
+					
+					var getIterationInfo = function () {
+						
+						//TFS_Work_WebApi.getClient().getBoard(teamContext)
+						//	.then(function (boards) {
+						//		TFS_Work_WebApi.getClient().getBoard(teamContext, boards.value[0].id)
+						//			.then(function (board) {
+									//console.log(board.columns);								
+			<!-- {id: "842d9177-9e33-43bd-8470-2ae595492d47", name: "New", itemLimit: 0, stateMappings: {…}, columnType: 0} -->
+			<!-- {id: "a451c4cd-12be-4387-9018-8358bd0a6d52", name: "Committed", itemLimit: 0, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "b06b2132-ffc4-4fea-b706-5f7fcd74eb2c", name: "In Progress", itemLimit: 6, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "01067f62-fd6f-4fba-8ab5-78fb4ee270c5", name: "Ready for Code Review", itemLimit: 6, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "b8c3c8ab-93f0-421e-8346-f368ad3112cb", name: "Ready for test", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "92b23e23-fe5c-474f-a210-51cbab0fc4b4", name: "PO check", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "bc050022-9f5a-447f-8b44-72db2706c20c", name: "Ready for Release", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
+			<!-- {id: "6a09d6d5-0add-419e-a7d0-b1dfa271b967", name: "Done", itemLimit: 0, stateMappings: {…}, columnType: 2} -->
+						//		});
+						//	});
+					
+						return TFS_Work_WebApi.getClient().getTeamIterations(teamContext)
+							.then(function (iterations) {
+														
+								for(var iterationNumber = 0; iterationNumber < iterations.length; iterationNumber++) {
+									var milisecondsStart = Date.parse(iterations[iterationNumber].attributes.startDate);
+									var milisecondsEnd = Date.parse(iterations[iterationNumber].attributes.finishDate);
+									var currentMilisecond = Date.parse(new Date());
+									
+									if(currentMilisecond > milisecondsStart && currentMilisecond < milisecondsEnd) {
+										currentIteration = iterationNumber;
+										break;
 									}
-								}
+								};
 								
-								return WidgetHelpers.WidgetStatusHelper.Success();
+								for (var i = 0; i < iterations.length; i++) {
+									if(i <= currentIteration) {
+										currentIterations.push(iterations[i]);
+									}
+								};
+							
+								return setIterationInfo();
 							}, function (error) {                            
 								return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
 							});
@@ -144,20 +198,62 @@
 				
 					return {
 						load: function (widgetSettings) {
-							var $title = $('h2.title');
-							$title.text('Real Sprint Burndown');
-
-							return getIterationInfo(widgetSettings);
+							currentWidgetSettings = widgetSettings;
+							return getIterationInfo();
 						},
 						reload: function (widgetSettings) {
-							return getIterationInfo(widgetSettings);
+							currentWidgetSettings = widgetSettings;
+							return getIterationInfo();
 						}
 					}
 				});
 				VSS.notifyLoadSucceeded();
 			});
 			
-			function GenerateGraph(graphData) {
+			function GetTotalEffort(workItems) {
+				var totalEffort = 0;
+			
+				for(var k = 0; k < workItems.length; k++) {
+					var currentEffort = workItems[k].fields['Microsoft.VSTS.Scheduling.Effort'];
+					if(currentEffort !== undefined) {
+						totalEffort += currentEffort;
+					};
+				};
+				
+				return totalEffort;
+			};
+			
+			// Since these return values are async I need to get the correct day of sprint
+			function GetCurrentDay(currentDayFromResult, dayCollection) {
+				var currentDay = 0;
+				
+				for(var l = 0; l < dayCollection.length; l++) {
+					if(currentDayFromResult.toString() === dayCollection[l].Date.toString()) {
+						currentDay = dayCollection[l].Day;
+						break;
+					}
+				}
+				
+				return currentDay;
+			};
+			
+			function GetIncludedFields(widgetSettings) {
+				var includedFields = "'Committed','In Progress','Ready for Code Review','Ready for test','PO check'";
+				var settings = JSON.parse(widgetSettings.customSettings.data);
+				if (settings && settings.includedFields) {
+					includedFields = settings.includedFields;
+				}
+				
+				return includedFields;
+			};
+			
+			function GenerateGraph(graphData) {			
+				var margin = {top: 10, right: 10, bottom: 15, left: 25},
+					width = 450 - margin.left - margin.right,
+					height = 250 - margin.top - margin.bottom;
+				var x = d3.scaleLinear().range([0, width]);
+				var y = d3.scaleLinear().range([height, 0]);
+			
 				var ideal = [
 					{ Day: 0, Remaining: graphData[0].Remaining},
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
@@ -179,7 +275,7 @@
 
 				var yAxis = d3.axisLeft()
 					.scale(y);
-
+				
 				var chart = d3.select("#query-info-container").append("svg")
 					.attr("class", "chart")
 					.attr("width", width + margin.left + margin.right)
@@ -227,7 +323,11 @@
 	</head>
 	<body>
 		<div class="widget">
-			<h2 class="title"></h2>
+			<h2 style="float: left;" class="title"></h2>
+			<div style="float: right;">
+				<a class="goToPreviousSprint" href="#">Previous</a>
+				<a class="goToNextSprint" href="#">Next</a>
+			</div>
 			<div id="query-info-container"></div>
 		</div>
 	</body>
