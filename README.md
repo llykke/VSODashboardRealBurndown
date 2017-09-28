@@ -1,1 +1,1 @@
-THIS IS THE README
+This widget shows your burndown based on the columns you include in the total points still to burn. Points are only per working item, when using task managed hours this burndown will not help you. This burndown only knows of work done in scope of a PBI.
