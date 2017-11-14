@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-	<head>                          
+	<head>
+		<style>
+			label {
+				font-weight: bold;
+			}
+			
+			input {
+				width: 100%;
+				margin-bottom: 10px;
+			}
+		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script> 
 		<script type="text/javascript">
 			VSS.init({                        
@@ -9,19 +19,37 @@
 			});
 
 			VSS.require("TFS/Dashboards/WidgetHelpers", function (WidgetHelpers) {
-				VSS.register("RealSprintBurndown.Configuration", function () {   
-					var $includedFieldsInput = $("#included-fields"); 
-
+				VSS.register("RealSprintBurndown.Configuration", function () {
+					var $areaPathInput = $("#area-path");
+					var $includedFieldsInput = $("#included-fields");
+					
 					return {
 						load: function (widgetSettings, widgetConfigurationContext) {
 							var settings = JSON.parse(widgetSettings.customSettings.data);
+							
+							if (settings && settings.areaPath) {
+								 $areaPathInput.val(settings.areaPath);
+							}
 							if (settings && settings.includedFields) {
 								 $includedFieldsInput.val(settings.includedFields);
 							}
 							
+							$areaPathInput.on("change", function () {
+								var customSettings = {
+									data: JSON.stringify({
+										areaPath: $areaPathInput.val(),
+										includedFields: $includedFieldsInput.val()
+									})
+								};
+								var eventName = WidgetHelpers.WidgetEvent.ConfigurationChange;
+								var eventArgs = WidgetHelpers.WidgetEvent.Args(customSettings);
+								widgetConfigurationContext.notify(eventName, eventArgs);
+							});
+							
 							$includedFieldsInput.on("change", function () {
 								var customSettings = {
 									data: JSON.stringify({
+										areaPath: $areaPathInput.val(),
 										includedFields: $includedFieldsInput.val()
 									})
 								};
@@ -35,6 +63,7 @@
 						onSave: function() {
 							var customSettings = {
 								data: JSON.stringify({
+										areaPath: $areaPathInput.val(),
 										includedFields: $includedFieldsInput.val()
 									})
 							};
@@ -49,8 +78,12 @@
 	<body>
 		<div class="container">
 			<fieldset>
-				<label class="label">Item states to include in burndown: </label>
-				<input type="text" value="'Committed','In Progress','Ready for Code Review','Ready for test','PO check'" id="included-fields" style="margin-top:10px" />
+				<label>Area path to sprint items (when empty Project Name]\[Team Name] is used) : </label><br />
+				<input type="text" value="" id="area-path" />
+			</fieldset>   
+			<fieldset>
+				<label>Item states to include in burndown: </label><br />
+				<input type="text" value="'Committed','In Progress','Ready for Code Review','Ready for test','PO check'" id="included-fields" />
 			</fieldset>             
 		</div>
 	</body>

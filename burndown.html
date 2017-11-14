@@ -57,6 +57,11 @@
 					var currentIteration = 0;
 					var currentIterations = [];
 					
+					var toEndOfDay = 86399940;
+				
+					var webContext = VSS.getWebContext();
+					var teamContext = { projectId: webContext.project.id, teamId: webContext.team.id, project: "", team: "" };
+					
 					$previous.click(function() {
 						if(currentIteration > 0) {
 							currentIteration = currentIteration - 1;
@@ -70,9 +75,6 @@
 							setIterationInfo();
 						}
 					});
-				
-					var webContext = VSS.getWebContext();
-					var teamContext = { projectId: webContext.project.id, teamId: webContext.team.id, project: "", team: "" };
 					
 					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData) {
 						if(sprintDayCollection.length === graphData.length) {
@@ -88,8 +90,9 @@
 						$title.text(currentIterations[currentIteration].name);
 								
 						var includedFields = GetIncludedFields(currentWidgetSettings);
+						var areaPath = GetAreaPath(currentWidgetSettings, webContext);
+						
 						var oneDay = 86400000;// Miliseconds per day
-						var toEndOfDay = 86399940;
 						var todayInfo = Date.now() + toEndOfDay;
 						var milisecondsStart = Date.parse(currentIterations[currentIteration].attributes.startDate);
 						var milisecondsEnd = Date.parse(currentIterations[currentIteration].attributes.finishDate);
@@ -116,8 +119,8 @@
 						for(var i = 0; i < sprintDayCollection.length; i++) {
 						
 							if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
-						
-								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='Snappet\\" + webContext.team.name + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+							
+								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
 								witClient.queryByWiql(query, webContext.project.id).then(
 									function(result) {
 										var idCollection = [];
@@ -153,9 +156,10 @@
 					};
 					
 					var getIterationInfo = function () {
-						
+					
 						//TFS_Work_WebApi.getClient().getBoard(teamContext)
 						//	.then(function (boards) {
+						//		console.log(boards);
 						//		TFS_Work_WebApi.getClient().getBoard(teamContext, boards.value[0].id)
 						//			.then(function (board) {
 									//console.log(board.columns);								
@@ -178,7 +182,7 @@
 									var milisecondsEnd = Date.parse(iterations[iterationNumber].attributes.finishDate);
 									var currentMilisecond = Date.parse(new Date());
 									
-									if(currentMilisecond > milisecondsStart && currentMilisecond < milisecondsEnd) {
+									if(currentMilisecond > milisecondsStart && currentMilisecond < (milisecondsEnd + toEndOfDay)) {
 										currentIteration = iterationNumber;
 										break;
 									}
@@ -235,6 +239,17 @@
 				}
 				
 				return currentDay;
+			};
+			
+			function GetAreaPath(widgetSettings, context) {
+				var areaPath = context.project.name + "\\" + context.team.name;
+				var settings = JSON.parse(widgetSettings.customSettings.data);
+				
+				if (settings && settings.areaPath) {
+					areaPath = settings.areaPath;
+				}
+				
+				return areaPath;
 			};
 			
 			function GetIncludedFields(widgetSettings) {
