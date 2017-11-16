@@ -39,12 +39,14 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
 		<script src="https://d3js.org/d3.v4.min.js"></script>
 		<script type="text/javascript">
+			var currentStoryPointField = 'Microsoft.VSTS.Scheduling.Effort';
+			
 			VSS.init({                        
 				explicitNotifyLoaded: true,
 				usePlatformStyles: true
 			});
 			
-			VSS.require(["TFS/Dashboards/WidgetHelpers", "VSS/Service", "TFS/Work/RestClient", "TFS/WorkItemTracking/RestClient"], function (WidgetHelpers, VSS_Service, TFS_Work_WebApi, TFS_Wit_WebApi) {
+			VSS.require(["TFS/Dashboards/WidgetHelpers", "VSS/Service", "TFS/Work/RestClient", "TFS/WorkItemTracking/RestClient", "TFS/Core/RestClient"], function (WidgetHelpers, VSS_Service, TFS_Work_WebApi, TFS_Wit_WebApi, TFS_Core_WebApi) {
 				WidgetHelpers.IncludeWidgetStyles();
 				VSS.register("RealSprintBurndown", function () { 
 				
@@ -131,8 +133,8 @@
 										var currentDay = GetCurrentDay(result.asOf, sprintDayCollection);
 																						
 										if(idCollection.length) {
-											witClient.getWorkItems(idCollection, ["Microsoft.VSTS.Scheduling.Effort"], result.asOf).then(
-											function(workItems) {									
+											witClient.getWorkItems(idCollection, [currentStoryPointField], result.asOf).then(
+											function(workItems) {
 												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
 												decideOnStartingGraphGeneration(sprintDayCollection, graphData);
 											}, function (error) {                            
@@ -193,6 +195,13 @@
 										currentIterations.push(iterations[i]);
 									}
 								};
+								
+								TFS_Core_WebApi.getClient().getProject(webContext.project.id, true, false)
+									.then(function (project) {
+										if(project.capabilities.processTemplate.templateName.indexOf(' Agile') > -1) {
+											currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
+										}
+									});
 							
 								return setIterationInfo();
 							}, function (error) {                            
@@ -218,7 +227,7 @@
 				var totalEffort = 0;
 			
 				for(var k = 0; k < workItems.length; k++) {
-					var currentEffort = workItems[k].fields['Microsoft.VSTS.Scheduling.Effort'];
+					var currentEffort = workItems[k].fields[currentStoryPointField];
 					if(currentEffort !== undefined) {
 						totalEffort += currentEffort;
 					};
