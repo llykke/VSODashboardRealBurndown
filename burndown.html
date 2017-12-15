@@ -131,8 +131,8 @@
 										};
 										
 										var currentDay = GetCurrentDay(result.asOf, sprintDayCollection);
-																						
-										if(idCollection.length) {
+										
+										if(idCollection.length > 0) {
 											witClient.getWorkItems(idCollection, [currentStoryPointField], result.asOf).then(
 											function(workItems) {
 												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
@@ -332,7 +332,7 @@
 
 				var validActual = [];
 				for (var i = 0; i < actual.length; i++) {
-					if (actual[i].Remaining) {
+					if (actual[i].Remaining !== null) {
 						validActual.push(actual[i]);
 					}
 				}
