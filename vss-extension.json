@@ -1,8 +1,8 @@
 {
 	"manifestVersion": 1,
-	"id": "vsts-extensions-myExtensions",
+	"id": "vsts-extensions-myExtensions-DEV",
 	"version": "2.1.7",
-	"name": "Real Sprint burndown",
+	"name": "Real Sprint burndown DEV",
 	"description": "Creates a sprint burndown chart based on your sprint and supported states in workflow",
 	"publisher": "tomkamphuis",
 	"public": true,
