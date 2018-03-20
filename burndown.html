@@ -34,6 +34,10 @@
 		.line.actual {
 			stroke: orange;
 		}
+		.line.trend {
+			stroke: red;
+			stroke-dasharray: 10;
+		}
 		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
@@ -198,7 +202,7 @@
 								
 								TFS_Core_WebApi.getClient().getProject(webContext.project.id, true, false)
 									.then(function (project) {
-										if(project.capabilities.processTemplate.templateName.indexOf(' Agile') > -1) {
+										if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
 											currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
 										}
 									});
@@ -283,11 +287,18 @@
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
 				];
 				var actual = graphData;
+				var trend = [
+					{ Day: 0, Remaining: graphData[0].Remaining},
+					{ Day: graphData[graphData.length-1].Day, Remaining: graphData[0].Remaining}
+				];
 
 				var idealLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 				var actualLine = d3.line()
+					.x(function(d) { return x(d.Day); })
+					.y(function(d) { return y(d.Remaining); });
+				var trendLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 
@@ -342,6 +353,12 @@
 					.datum(validActual)
 					.attr("class", "line actual")
 					.attr("d", actualLine);
+					
+				// Paint the trend line
+				chart.append("path")
+					.datum(trend)
+					.attr("class", "line trend")
+					.attr("d", trendLine);
 			}
 		</script>
 	</head>
