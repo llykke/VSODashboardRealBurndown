@@ -35,7 +35,7 @@
 			stroke: orange;
 		}
 		.line.trend {
-			stroke: red;
+			stroke: orange;
 			stroke-dasharray: 10;
 		}
 		</style>
@@ -288,8 +288,10 @@
 				];
 				var actual = graphData;
 				var trend = [
-					{ Day: 0, Remaining: graphData[0].Remaining},
-					{ Day: graphData[graphData.length-1].Day, Remaining: graphData[0].Remaining}
+					{ Day: currentDay, Remaining: graphData[currentDay].Remaining},
+					{ Day: graphData[graphData.length-1].Day,
+					  Remaining: (((graphData[currentDay].Remaining - graphData[0].Remaining)/currentDay) * graphData[graphData.length-1].Day) + graphData[0].Remaining
+					}
 				];
 
 				var idealLine = d3.line()
