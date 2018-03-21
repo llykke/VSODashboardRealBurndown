@@ -36,7 +36,7 @@
 		}
 		.line.trend {
 			stroke: orange;
-			stroke-dasharray: 10;
+			stroke-dasharray: 3;
 		}
 		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script>
@@ -287,10 +287,17 @@
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
 				];
 				var actual = graphData;
+				var actualLastDay = 0;
+				for(var d = 0; d < graphData.length; d++) {
+					if (graphData[d].Remaining > 0) {
+						actualLastDay = d;
+					}
+				}
+				/// alert("DEBUG: Last day of actual data is " + actualLastDay);
 				var trend = [
-					{ Day: currentDay, Remaining: graphData[currentDay].Remaining},
+					{ Day: actualLastDay, Remaining: graphData[actualLastDay].Remaining},
 					{ Day: graphData[graphData.length-1].Day,
-					  Remaining: (((graphData[currentDay].Remaining - graphData[0].Remaining)/currentDay) * graphData[graphData.length-1].Day) + graphData[0].Remaining
+					  Remaining: (((graphData[actualLastDay].Remaining - graphData[0].Remaining)/actualLastDay) * graphData[graphData.length-1].Day) + graphData[0].Remaining
 					}
 				];
 
