@@ -34,7 +34,7 @@
 		.line.actual {
 			stroke: orange;
 		}
-		.line.trend {
+		.line.projected {
 			stroke: orange;
 			stroke-dasharray: 3;
 		}
@@ -281,33 +281,48 @@
 					height = 250 - margin.top - margin.bottom;
 				var x = d3.scaleLinear().range([0, width]);
 				var y = d3.scaleLinear().range([height, 0]);
-			
+
+				// PREPARE LINE DATA SETS
+				
+				// Ideal Trend Line
 				var ideal = [
 					{ Day: 0, Remaining: graphData[0].Remaining},
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
 				];
+				
+				// Actual Line
 				var actual = graphData;
+				var validActual = [];
+				for (var i = 0; i < actual.length; i++) {
+					if (actual[i].Remaining !== null) {
+						validActual.push(actual[i]);
+					}
+				}
+
+				// Projected Trend Line
 				var actualLastDay = 0;
 				for(var d = 0; d < graphData.length; d++) {
 					if (graphData[d].Remaining > 0) {
 						actualLastDay = d;
 					}
 				}
-				/// alert("DEBUG: Last day of actual data is " + actualLastDay);
-				var trend = [
+				var projected = [
 					{ Day: actualLastDay, Remaining: graphData[actualLastDay].Remaining},
 					{ Day: graphData[graphData.length-1].Day,
 					  Remaining: (((graphData[actualLastDay].Remaining - graphData[0].Remaining)/actualLastDay) * graphData[graphData.length-1].Day) + graphData[0].Remaining
 					}
 				];
 
+				// DRAW THE CHART
+				
+				// Define the drawing objects
 				var idealLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 				var actualLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
-				var trendLine = d3.line()
+				var projectedLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 
@@ -350,24 +365,17 @@
 					.attr("class", "line ideal")
 					.attr("d", idealLine);
 
-				var validActual = [];
-				for (var i = 0; i < actual.length; i++) {
-					if (actual[i].Remaining !== null) {
-						validActual.push(actual[i]);
-					}
-				}
-
 				// Paint the actual line
 				chart.append("path")
 					.datum(validActual)
 					.attr("class", "line actual")
 					.attr("d", actualLine);
 					
-				// Paint the trend line
+				// Paint the projected trend line
 				chart.append("path")
-					.datum(trend)
-					.attr("class", "line trend")
-					.attr("d", trendLine);
+					.datum(projected)
+					.attr("class", "line projected")
+					.attr("d", projectedLine);
 			}
 		</script>
 	</head>
