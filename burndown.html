@@ -82,10 +82,10 @@
 						}
 					});
 					
-					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData) {
+					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData, projectionLineType) {
 						if(sprintDayCollection.length === graphData.length) {
 							$content.empty();
-							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
+							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']),projectionLineType);
 						}
 					};
 					
@@ -97,6 +97,7 @@
 								
 						var includedFields = GetIncludedFields(currentWidgetSettings);
 						var areaPath = GetAreaPath(currentWidgetSettings, webContext);
+						var projectionLineType = GetProjectionLineType(currentWidgetSettings);
 						
 						var oneDay = 86400000;// Miliseconds per day
 						var todayInfo = Date.now() + toEndOfDay;
@@ -140,13 +141,13 @@
 											witClient.getWorkItems(idCollection, [currentStoryPointField], result.asOf).then(
 											function(workItems) {
 												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
-												decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+												decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
 											}, function (error) {                            
 												return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
 											});
 										} else {
 											graphData.push({Day: currentDay, Remaining: 0});
-											decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+											decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
 										}
 									}, function (error) {                            
 										return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
@@ -154,7 +155,7 @@
 									
 							} else {
 								graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
-								decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+								decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
 							}
 						}
 						
@@ -275,7 +276,17 @@
 				return includedFields;
 			};
 			
-			function GenerateGraph(graphData) {			
+			function GetProjectionLineType(widgetSettings) {
+				var projectionLineType = "none";
+				var settings = JSON.parse(widgetSettings.customSettings.data);
+				if (settings && settings.projectionLineType) {
+					projectionLineType = settings.projectionLineType;
+				}
+				
+				return projectionLineType;
+			};
+			
+			function GenerateGraph(graphData,projectionLineType) {			
 				var margin = {top: 10, right: 10, bottom: 15, left: 25},
 					width = 450 - margin.left - margin.right,
 					height = 250 - margin.top - margin.bottom;
@@ -300,18 +311,15 @@
 				}
 
 				// Projected Trend Line
-				var actualLastDay = 0;
-				for(var d = 0; d < graphData.length; d++) {
-					if (graphData[d].Remaining > 0) {
-						actualLastDay = d;
-					}
+				var projected = [];
+				if (projectionLineType == "linear") {
+					projected = [
+						{ Day: validActual[validActual.length-1].Day, Remaining: validActual[validActual.length-1].Remaining},
+						{ Day: graphData[graphData.length-1].Day,
+						Remaining: (((validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day) * graphData[graphData.length-1].Day) + graphData[0].Remaining
+						}
+					];
 				}
-				var projected = [
-					{ Day: actualLastDay, Remaining: graphData[actualLastDay].Remaining},
-					{ Day: graphData[graphData.length-1].Day,
-					  Remaining: (((graphData[actualLastDay].Remaining - graphData[0].Remaining)/actualLastDay) * graphData[graphData.length-1].Day) + graphData[0].Remaining
-					}
-				];
 
 				// DRAW THE CHART
 				
