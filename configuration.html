@@ -113,7 +113,14 @@
 				<label>Projection line: </label><br />
 				<select value="none" id="projection-line-type">
 					<option value="none">No Projection Line</option>
-					<option value="linear">Linear (based on points burned to date)</option>
+					<option value="linear">Linear (based on burn rate to date)</option>
+					<option value="last3days">Last 3 Days (based on burn rate over last three days)</option>
+					<option value="ideal">Ideal (based on original ideal burn)</option>
+					<option value="zero">Zero (full burn to zero points)</option>
+					<!-- TEST OPTIONS (COMMENT OUT BEFORE PACKAGING)-->
+					<!-- option value="plus8points">+8 Points (test case: projected points left over)</option -->
+					<!-- option value="minus8points">-8 Points (test case: projected early finish)</option -->
+					<!-- END TEST OPTIONS -->
 				</select>
 			</fieldset>           
 		</div>

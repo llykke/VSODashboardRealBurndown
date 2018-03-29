@@ -311,16 +311,46 @@
 				}
 
 				// Projected Trend Line
-				var projected = [];
-				if (projectionLineType == "linear") {
-					projected = [
-						{ Day: validActual[validActual.length-1].Day, Remaining: validActual[validActual.length-1].Remaining},
-						{ Day: graphData[graphData.length-1].Day,
-						Remaining: (((validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day) * graphData[graphData.length-1].Day) + graphData[0].Remaining
-						}
-					];
+				if (projectionLineType != "none") {
+					var Px1 = validActual[validActual.length-1].Day;
+					var Py1 = validActual[validActual.length-1].Remaining;
+					var Pm;
+					var Px2 = graphData[graphData.length-1].Day;
+					var Py2;
 				}
+				if (projectionLineType == "linear") {
+					Pm = (validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day;
+					Py2 = (Pm * graphData[graphData.length-1].Day) + graphData[0].Remaining;
+				} else if (projectionLineType == "last3days") {
+					if (validActual[validActual.length-1].Day > 3) {
+						Pm = (validActual[validActual.length-1].Remaining - validActual[validActual.length-4].Remaining)/3;
+					} else {
+						Pm = (validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day;
+					}
+					Py2 = (Pm * graphData[graphData.length-1].Day) + graphData[0].Remaining;
+				} else if (projectionLineType == "ideal") {
+					Pm = (0 - graphData[0].Remaining) / graphData[graphData.length-1].Day;
+					Py2 = (Pm * (graphData[graphData.length-1].Day - validActual[validActual.length-1].Day)) + validActual[validActual.length-1].Remaining;
+				} else if (projectionLineType == "zero") {
+					Py2 = 0;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				} else if (projectionLineType == "plus8points") {  //for testing purposes only; uncomment option in configuration.html
+					Py2 = 8;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				} else if (projectionLineType == "minus8points") { //for testing purposes only; uncomment option in configuration.html
+					Py2 = -8;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				}
+				if ((projectionLineType != "none") && (Py2 < 0)) { //prevent crossing of x-axis
+					Px2 -= Py2 / Pm;
+					Py2 = 0;
+				}
+				var projected = [
+					{ Day: Px1, Remaining: Py1},
+					{ Day: Px2, Remaining: Py2}
+				];
 
+				
 				// DRAW THE CHART
 				
 				// Define the drawing objects
