@@ -36,8 +36,8 @@
 		}
 		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
-		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<script src="modules/lodash.js"></script>
+		<script src="modules/d3js.js"></script>
 		<script type="text/javascript">
 			var currentStoryPointField = 'Microsoft.VSTS.Scheduling.Effort';
 			
@@ -198,7 +198,7 @@
 								
 								TFS_Core_WebApi.getClient().getProject(webContext.project.id, true, false)
 									.then(function (project) {
-										if(project.capabilities.processTemplate.templateName.indexOf(' Agile') > -1) {
+										if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
 											currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
 										}
 									});
