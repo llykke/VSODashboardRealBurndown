@@ -40,8 +40,8 @@
 		}
 		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
-		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<script src="modules/lodash.js"></script>
+		<script src="modules/d3js.js"></script>
 		<script type="text/javascript">
 			var currentStoryPointField = 'Microsoft.VSTS.Scheduling.Effort';
 			
@@ -85,7 +85,7 @@
 					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData, projectionLineType) {
 						if(sprintDayCollection.length === graphData.length) {
 							$content.empty();
-							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']),projectionLineType);
+							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']), projectionLineType);
 						}
 					};
 					
@@ -141,13 +141,13 @@
 											witClient.getWorkItems(idCollection, [currentStoryPointField], result.asOf).then(
 											function(workItems) {
 												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
-												decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
+												decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 											}, function (error) {                            
 												return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
 											});
 										} else {
 											graphData.push({Day: currentDay, Remaining: 0});
-											decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
+											decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 										}
 									}, function (error) {                            
 										return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
@@ -155,7 +155,7 @@
 									
 							} else {
 								graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
-								decideOnStartingGraphGeneration(sprintDayCollection, graphData,projectionLineType);
+								decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 							}
 						}
 						
@@ -286,30 +286,26 @@
 				return projectionLineType;
 			};
 			
-			function GenerateGraph(graphData,projectionLineType) {			
+			function GenerateGraph(graphData, projectionLineType) {			
 				var margin = {top: 10, right: 10, bottom: 15, left: 25},
 					width = 450 - margin.left - margin.right,
 					height = 250 - margin.top - margin.bottom;
 				var x = d3.scaleLinear().range([0, width]);
 				var y = d3.scaleLinear().range([height, 0]);
-
-				// PREPARE LINE DATA SETS
-				
-				// Ideal Trend Line
+			
 				var ideal = [
 					{ Day: 0, Remaining: graphData[0].Remaining},
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
 				];
-				
-				// Actual Line
 				var actual = graphData;
+				
 				var validActual = [];
 				for (var i = 0; i < actual.length; i++) {
 					if (actual[i].Remaining !== null) {
 						validActual.push(actual[i]);
 					}
 				}
-
+				
 				// Projected Trend Line
 				if (projectionLineType != "none") {
 					var Px1 = validActual[validActual.length-1].Day;
@@ -350,10 +346,6 @@
 					{ Day: Px2, Remaining: Py2}
 				];
 
-				
-				// DRAW THE CHART
-				
-				// Define the drawing objects
 				var idealLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
