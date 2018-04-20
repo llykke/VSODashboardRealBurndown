@@ -13,6 +13,7 @@ This plugin can be of use when you want to track the work done on your PBI's. Fo
 * Effort field to put in the estimation
 
 ## Configuration
-At the moment there are two configuration options:
+At the moment there are three configuration options:
 * Area path, by default set to {projectname}\{teamname}. Use backslashes for your path and make sure to leave spaces there if you have any. So if you have three levels your area path would look like: level1\level 2\level3
 * Included states, by default set to 'Committed','In Progress','Ready for Code Review','Ready for test','PO check'. Every PBI has a couple of states that would reflect a state in your teams sprint. Make sure that if you change this you use single quotes around your state and use comma's without spaces to seperate the states.
+* Projection line, with several options to choose from, including a linear (average) projection, a projection based on the average point closure over the last three days, a projection based on the original ideal trend line, a full burndown to zero, and the option to show no projection at all (default).

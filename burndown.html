@@ -34,6 +34,10 @@
 		.line.actual {
 			stroke: orange;
 		}
+		.line.projected {
+			stroke: orange;
+			stroke-dasharray: 3;
+		}
 		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script>
 		<script src="modules/lodash.js"></script>
@@ -78,10 +82,10 @@
 						}
 					});
 					
-					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData) {
+					var decideOnStartingGraphGeneration = function(sprintDayCollection, graphData, projectionLineType) {
 						if(sprintDayCollection.length === graphData.length) {
 							$content.empty();
-							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']));
+							GenerateGraph(_.orderBy(graphData, ['Day'], ['asc']), projectionLineType);
 						}
 					};
 					
@@ -93,6 +97,7 @@
 								
 						var includedFields = GetIncludedFields(currentWidgetSettings);
 						var areaPath = GetAreaPath(currentWidgetSettings, webContext);
+						var projectionLineType = GetProjectionLineType(currentWidgetSettings);
 						
 						var oneDay = 86400000;// Miliseconds per day
 						var todayInfo = Date.now() + toEndOfDay;
@@ -136,13 +141,13 @@
 											witClient.getWorkItems(idCollection, [currentStoryPointField], result.asOf).then(
 											function(workItems) {
 												graphData.push({Day: currentDay, Remaining: GetTotalEffort(workItems)});
-												decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+												decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 											}, function (error) {                            
 												return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
 											});
 										} else {
 											graphData.push({Day: currentDay, Remaining: 0});
-											decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+											decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 										}
 									}, function (error) {                            
 										return WidgetHelpers.WidgetStatusHelper.Failure(error.message);
@@ -150,7 +155,7 @@
 									
 							} else {
 								graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
-								decideOnStartingGraphGeneration(sprintDayCollection, graphData);
+								decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 							}
 						}
 						
@@ -271,7 +276,17 @@
 				return includedFields;
 			};
 			
-			function GenerateGraph(graphData) {			
+			function GetProjectionLineType(widgetSettings) {
+				var projectionLineType = "none";
+				var settings = JSON.parse(widgetSettings.customSettings.data);
+				if (settings && settings.projectionLineType) {
+					projectionLineType = settings.projectionLineType;
+				}
+				
+				return projectionLineType;
+			};
+			
+			function GenerateGraph(graphData, projectionLineType) {			
 				var margin = {top: 10, right: 10, bottom: 15, left: 25},
 					width = 450 - margin.left - margin.right,
 					height = 250 - margin.top - margin.bottom;
@@ -283,11 +298,61 @@
 					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
 				];
 				var actual = graphData;
+				
+				var validActual = [];
+				for (var i = 0; i < actual.length; i++) {
+					if (actual[i].Remaining !== null) {
+						validActual.push(actual[i]);
+					}
+				}
+				
+				// Projected Trend Line
+				if (projectionLineType != "none") {
+					var Px1 = validActual[validActual.length-1].Day;
+					var Py1 = validActual[validActual.length-1].Remaining;
+					var Pm;
+					var Px2 = graphData[graphData.length-1].Day;
+					var Py2;
+				}
+				if (projectionLineType == "linear") {
+					Pm = (validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day;
+					Py2 = (Pm * graphData[graphData.length-1].Day) + graphData[0].Remaining;
+				} else if (projectionLineType == "last3days") {
+					if (validActual[validActual.length-1].Day > 3) {
+						Pm = (validActual[validActual.length-1].Remaining - validActual[validActual.length-4].Remaining)/3;
+					} else {
+						Pm = (validActual[validActual.length-1].Remaining - graphData[0].Remaining)/validActual[validActual.length-1].Day;
+					}
+					Py2 = (Pm * graphData[graphData.length-1].Day) + graphData[0].Remaining;
+				} else if (projectionLineType == "ideal") {
+					Pm = (0 - graphData[0].Remaining) / graphData[graphData.length-1].Day;
+					Py2 = (Pm * (graphData[graphData.length-1].Day - validActual[validActual.length-1].Day)) + validActual[validActual.length-1].Remaining;
+				} else if (projectionLineType == "zero") {
+					Py2 = 0;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				} else if (projectionLineType == "plus8points") {  //for testing purposes only; uncomment option in configuration.html
+					Py2 = 8;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				} else if (projectionLineType == "minus8points") { //for testing purposes only; uncomment option in configuration.html
+					Py2 = -8;
+					Pm  = (Py2-Py1)/(Px2-Px1);
+				}
+				if ((projectionLineType != "none") && (Py2 < 0)) { //prevent crossing of x-axis
+					Px2 -= Py2 / Pm;
+					Py2 = 0;
+				}
+				var projected = [
+					{ Day: Px1, Remaining: Py1},
+					{ Day: Px2, Remaining: Py2}
+				];
 
 				var idealLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 				var actualLine = d3.line()
+					.x(function(d) { return x(d.Day); })
+					.y(function(d) { return y(d.Remaining); });
+				var projectedLine = d3.line()
 					.x(function(d) { return x(d.Day); })
 					.y(function(d) { return y(d.Remaining); });
 
@@ -330,18 +395,17 @@
 					.attr("class", "line ideal")
 					.attr("d", idealLine);
 
-				var validActual = [];
-				for (var i = 0; i < actual.length; i++) {
-					if (actual[i].Remaining !== null) {
-						validActual.push(actual[i]);
-					}
-				}
-
 				// Paint the actual line
 				chart.append("path")
 					.datum(validActual)
 					.attr("class", "line actual")
 					.attr("d", actualLine);
+					
+				// Paint the projected trend line
+				chart.append("path")
+					.datum(projected)
+					.attr("class", "line projected")
+					.attr("d", projectedLine);
 			}
 		</script>
 	</head>
