@@ -97,6 +97,7 @@
 								
 						var includedFields = GetIncludedFields(currentWidgetSettings);
 						var areaPath = GetAreaPath(currentWidgetSettings, webContext);
+						var teamReferenceField = GetTeamReferenceField(currentWidgetSettings, webContext);
 						var projectionLineType = GetProjectionLineType(currentWidgetSettings);
 						
 						var oneDay = 86400000;// Miliseconds per day
@@ -126,8 +127,13 @@
 						for(var i = 0; i < sprintDayCollection.length; i++) {
 						
 							if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
-							
 								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								if (!teamReferenceField || 0 === teamReferenceField.length){
+									query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								}
+								else{
+									query =  {query: "SELECT [System.Id] FROM WorkItem WHERE '" + teamReferenceField +"'='" + teamContext.team.name + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								}
 								witClient.queryByWiql(query, webContext.project.id).then(
 									function(result) {
 										var idCollection = [];
@@ -206,6 +212,9 @@
 										if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
 											currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
 										}
+										if(project.capabilities.processTemplate.templateName.indexOf('CMMI') > -1) {
+											currentStoryPointField = 'Microsoft.VSTS.Scheduling.Size';
+										}
 									});
 							
 								return setIterationInfo();
@@ -264,6 +273,17 @@
 				}
 				
 				return areaPath;
+			};
+
+			function GetTeamReferenceField(widgetSettings, context) {
+				var teamReferenceField = "";
+				var settings = JSON.parse(widgetSettings.customSettings.data);
+				
+				if (settings && settings.teamReferenceField) {
+					teamReferenceField = settings.teamReferenceField;
+				}
+				
+				return teamReferenceField;
 			};
 			
 			function GetIncludedFields(widgetSettings) {
