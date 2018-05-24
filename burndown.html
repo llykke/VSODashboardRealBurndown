@@ -67,7 +67,15 @@
 				
 					var webContext = VSS.getWebContext();
 					var teamContext = { projectId: webContext.project.id, teamId: webContext.team.id, project: "", team: "" };
-					
+				    //Set team name in the team context using core API
+				    TFS_Core_WebApi.getClient().getTeam(teamContext.projectId, teamContext.teamId)
+				        .then(function(team) {
+				            if (0 === team.name.length) {
+				                teamContext.team = "Undefined";
+				            } else {
+				                teamContext.team = team.name;
+				            }
+				        });
 					$previous.click(function() {
 						if(currentIteration > 0) {
 							currentIteration = currentIteration - 1;
@@ -120,19 +128,17 @@
 								sprintDayCollection.push({Day: dayOfSprint, Date: currentDate});
 								dayOfSprint++; 
 							}
-						
 							milisecondsStart += oneDay;
 						}
-						
 						for(var i = 0; i < sprintDayCollection.length; i++) {
 						
 							if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
-								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
-								if (!teamReferenceField || 0 === teamReferenceField.length){
-									query = {query: "SELECT [System.Id] FROM WorkItem WHERE System.AreaPath='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE [System.AreaPath]='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+								if(0 === teamReferenceField.length){
+									query = {query: "SELECT [System.Id] FROM WorkItem WHERE [System.AreaPath]='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
 								}
-								else{
-									query =  {query: "SELECT [System.Id] FROM WorkItem WHERE '" + teamReferenceField +"'='" + teamContext.team.name + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
+                                else {
+                                    query = { query: "SELECT [System.Id] FROM WorkItem WHERE [" + teamReferenceField + "]='" + teamContext.team + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
 								}
 								witClient.queryByWiql(query, webContext.project.id).then(
 									function(result) {
@@ -160,7 +166,7 @@
 									});
 									
 							} else {
-								graphData.push({Day: sprintDayCollection[i].Day, Remaining: null})
+							    graphData.push({ Day: sprintDayCollection[i].Day, Remaining: null });
 								decideOnStartingGraphGeneration(sprintDayCollection, graphData, projectionLineType);
 							}
 						}
@@ -169,24 +175,6 @@
 					};
 					
 					var getIterationInfo = function () {
-					
-						//TFS_Work_WebApi.getClient().getBoard(teamContext)
-						//	.then(function (boards) {
-						//		console.log(boards);
-						//		TFS_Work_WebApi.getClient().getBoard(teamContext, boards.value[0].id)
-						//			.then(function (board) {
-									//console.log(board.columns);								
-			<!-- {id: "842d9177-9e33-43bd-8470-2ae595492d47", name: "New", itemLimit: 0, stateMappings: {…}, columnType: 0} -->
-			<!-- {id: "a451c4cd-12be-4387-9018-8358bd0a6d52", name: "Committed", itemLimit: 0, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "b06b2132-ffc4-4fea-b706-5f7fcd74eb2c", name: "In Progress", itemLimit: 6, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "01067f62-fd6f-4fba-8ab5-78fb4ee270c5", name: "Ready for Code Review", itemLimit: 6, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "b8c3c8ab-93f0-421e-8346-f368ad3112cb", name: "Ready for test", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "92b23e23-fe5c-474f-a210-51cbab0fc4b4", name: "PO check", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "bc050022-9f5a-447f-8b44-72db2706c20c", name: "Ready for Release", itemLimit: 5, stateMappings: {…}, isSplit: false, …} -->
-			<!-- {id: "6a09d6d5-0add-419e-a7d0-b1dfa271b967", name: "Done", itemLimit: 0, stateMappings: {…}, columnType: 2} -->
-						//		});
-						//	});
-					
 						return TFS_Work_WebApi.getClient().getTeamIterations(teamContext)
 							.then(function (iterations) {
 														
@@ -206,7 +194,7 @@
 										currentIterations.push(iterations[i]);
 									}
 								};
-								
+                            
 								TFS_Core_WebApi.getClient().getProject(webContext.project.id, true, false)
 									.then(function (project) {
 										if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
@@ -279,7 +267,7 @@
 				var teamReferenceField = "";
 				var settings = JSON.parse(widgetSettings.customSettings.data);
 				
-				if (settings && settings.teamReferenceField) {
+                if (settings && settings.teamReferenceField) {
 					teamReferenceField = settings.teamReferenceField;
 				}
 				
@@ -431,7 +419,7 @@
 	</head>
 	<body>
 		<div class="widget">
-			<h2 style="float: left;" class="title"></h2>
+			<h2 class="title">Burndown</h2>
 			<div style="float: right;">
 				<a class="goToPreviousSprint" href="#">Previous</a>
 				<a class="goToNextSprint" href="#">Next</a>

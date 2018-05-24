@@ -1,20 +1,6 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 	<head>
-		<style>
-			label {
-				font-weight: bold;
-			}
-			input {
-				margin-bottom: 10px;
-			}
-			input[type="text"] {
-				width: 100%;
-			}
-			select {
-				width: 100%;
-			}
-		</style>
 		<script src="sdk/scripts/VSS.SDK.min.js"></script> 
 		<script type="text/javascript">
 			VSS.init({                        
@@ -23,7 +9,8 @@
 			});
 
 			VSS.require("TFS/Dashboards/WidgetHelpers", function (WidgetHelpers) {
-				VSS.register("RealSprintBurndown.Configuration", function () {
+			    WidgetHelpers.IncludeWidgetConfigurationStyles();
+                VSS.register("RealSprintBurndown.Configuration", function () {
 					var $areaPathInput = $("#area-path");
 					var $teamReferenceFieldInput = $("#team-referencefield");
 					var $includedFieldsInput = $("#included-fields");
@@ -121,21 +108,21 @@
 		</script>		
 	</head>
 	<body>
-		<div class="container">
+		<div class="widget-configuration">
 			<fieldset>
-				<label>Area path to sprint items (when empty Project Name]\[Team Name] is used) : </label><br />
+				<label>Area path to sprint items (when empty Project Name]\[Team Name] is used):</label>
 				<input type="text" value="" id="area-path" />
 			</fieldset>   
 			<fieldset>
-				<label>Team reference field name (leave empty, if team work is determined by area path): </label><br />
+				<label>Team reference field name (leave empty, if team work is determined by area path):</label>
 				<input type="text" value="" id="team-referencefield" />
 			</fieldset>   
 			<fieldset>
-				<label>Item states to include in burndown: </label><br />
+				<label>Item states to include in burndown:</label>
 				<input type="text" value="'Committed','In Progress','Ready for Code Review','Ready for test','PO check'" id="included-fields" />
 			</fieldset>  
 			<fieldset>
-				<label>Projection line: </label><br />
+				<label>Projection line:</label>
 				<select value="none" id="projection-line-type">
 					<option value="none">No Projection Line</option>
 					<option value="linear">Linear (based on burn rate to date)</option>
