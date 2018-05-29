@@ -134,7 +134,7 @@
 						
 							if(Date.parse(sprintDayCollection[i].Date) <= todayInfo) {
 								var query = {query: "SELECT [System.Id] FROM WorkItem WHERE [System.AreaPath]='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
-								if(0 === teamReferenceField.length){
+                                if (!teamReferenceField || 0 === teamReferenceField.length){
 									query = {query: "SELECT [System.Id] FROM WorkItem WHERE [System.AreaPath]='" + areaPath + "' AND [System.IterationPath]='" + currentIterations[currentIteration].path + "' AND [System.State] IN (" + includedFields + ") ASOF '" + sprintDayCollection[i].Date.toISOString() + "'" };
 								}
                                 else {
@@ -301,19 +301,23 @@
 				var x = d3.scaleLinear().range([0, width]);
 				var y = d3.scaleLinear().range([height, 0]);
 			
-				var ideal = [
-					{ Day: 0, Remaining: graphData[0].Remaining},
-					{ Day: graphData[graphData.length-1].Day, Remaining: 0}
-				];
+
 				var actual = graphData;
 				
-				var validActual = [];
+                var validActual = [];
+			    var maximumRemaining = 0;
 				for (var i = 0; i < actual.length; i++) {
-					if (actual[i].Remaining !== null) {
+                    if (actual[i].Remaining !== null) {
+                        if (actual[i].Remaining > maximumRemaining) {
+                            maximumRemaining = actual[i].Remaining;
+                        }
 						validActual.push(actual[i]);
 					}
 				}
-				
+			    var ideal = [
+			        { Day: 0, Remaining: maximumRemaining},
+			        { Day: graphData[graphData.length-1].Day, Remaining: 0}
+			    ];
 				// Projected Trend Line
 				if (projectionLineType != "none") {
 					var Px1 = validActual[validActual.length-1].Day;
