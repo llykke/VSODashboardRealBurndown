@@ -197,12 +197,18 @@
                             
 								TFS_Core_WebApi.getClient().getProject(webContext.project.id, true, false)
 									.then(function (project) {
-										if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
-											currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
-										}
-										if(project.capabilities.processTemplate.templateName.indexOf('CMMI') > -1) {
+										if(project.capabilities === null){
 											currentStoryPointField = 'Microsoft.VSTS.Scheduling.Size';
 										}
+										else {
+											if(project.capabilities.processTemplate.templateName.indexOf('Agile') > -1) {
+												currentStoryPointField = 'Microsoft.VSTS.Scheduling.StoryPoints';
+											}
+											if(project.capabilities.processTemplate.templateName.indexOf('CMMI') > -1) {
+												currentStoryPointField = 'Microsoft.VSTS.Scheduling.Size';
+											}
+										}
+
 									});
 							
 								return setIterationInfo();
